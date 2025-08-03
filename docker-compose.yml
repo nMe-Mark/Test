@@ -1,43 +1,87 @@
+# services:
+#   auth-db:
+#     image: mongo:6.0
+#     container_name: project_template_auth_db
+#     hostname: auth-db
+#     environment:
+#       MONGO_INITDB_ROOT_USERNAME: ${AUTH_MONGO_USER}
+#       MONGO_INITDB_ROOT_PASSWORD: ${AUTH_MONGO_PASSWORD}
+#       MONGO_INITDB_DATABASE: ${AUTH_MONGO_DBNAME}
+#       TZ: Europe/Sofia
+#     ports:
+#       - "5450:27017"
+#     volumes:
+#       - auth-db-data:/data/db
+#     networks:
+#       - project_template_network   
+    
+#   backend:
+#     build:
+#       context: ./backend
+#       dockerfile: Dockerfile
+#     container_name: project_template_backend
+#     depends_on:
+#       - auth-db
+#     environment:
+#       - FLASK_ENV=development
+#       - PYTHONUNBUFFERED=1
+#     ports:
+#       - "5000:5000"
+#     volumes:
+#       - ./backend:/app
+#     networks:
+#       - project_template_network
+
+# volumes:
+#   auth-db-data:
+#     driver: local
+#     name: auth-db-data
+
+# networks:
+#   project_template_network:
+#     driver: bridge
+#     name: project_template_network
+
+
+
+
 services:
   auth-db:
-    image: mongo:6.0
-    container_name: project_template_auth_db
-    hostname: auth-db
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${AUTH_MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${AUTH_MONGO_PASSWORD}
-      MONGO_INITDB_DATABASE: ${AUTH_MONGO_DBNAME}
-      TZ: Europe/Sofia
+    image: mongo
+    container_name: auth-db
     ports:
-      - "5450:27017"
+      - "27017:27017"
     volumes:
-      - auth-db-data:/data/db
-    networks:
-      - project_template_network   
-    
+      - mongo_data:/data/db
+
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    container_name: project_template_backend
-    depends_on:
-      - auth-db
-    environment:
-      - FLASK_ENV=development
-      - PYTHONUNBUFFERED=1
+    container_name: backend
     ports:
       - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+      - MONGO_URI=mongodb://auth-db:27017/auth-db
+    depends_on:
+      - auth-db
+    command: >
+      sh -c "sleep 5 && flask run --host=0.0.0.0"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    ports:
+      - "5174:5174"
+    command: npm run dev --host
     volumes:
-      - ./backend:/app
-    networks:
-      - project_template_network
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+  
 
 volumes:
-  auth-db-data:
-    driver: local
-    name: auth-db-data
-
-networks:
-  project_template_network:
-    driver: bridge
-    name: project_template_network
+  mongo_data:

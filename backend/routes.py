@@ -2,8 +2,10 @@ from flask import Blueprint, jsonify, request
 from services import generate_token
 from models import User
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from models import Task
 
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__)  # Премахнат url_prefix тук
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -15,7 +17,6 @@ def register():
     if not username or not email or not password:
         return jsonify({"msg": "Missing required fields"}), 400
 
-    # Проверка дали потребител вече съществува
     if User.find_by_username(username) or User.find_by_email(email):
         return jsonify({"msg": "User already exists"}), 409
 
@@ -24,16 +25,19 @@ def register():
 
     return jsonify({"msg": "User registered successfully", "user": User.to_string(user)}), 201
 
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    username = data.get('username')
+    print("Получени данни:", data)
+    
+    email = data.get('email')
     password = data.get('password')
 
-    if not username or not password:
+    if not email or not password:
         return jsonify({"msg": "Missing required fields"}), 400
 
-    user = User.find_by_username(username)
+    user = User.find_by_email(email)
     if user and check_password_hash(user['password'], password):
         token = generate_token(identity=user['_id'])
         return jsonify({
@@ -44,17 +48,15 @@ def login():
 
     return jsonify({"msg": "Invalid credentials"}), 401
 
+
 @auth_bp.route('/all_users', methods=['GET'])
 def get_all_users():
     from extensions import get_db
-    users = list(get_db()['users'].find({}, {'password': 0}))  # скриваме паролите
+    users = list(get_db()['users'].find({}, {'password': 0}))
     for user in users:
-        user['_id'] = str(user['_id'])  # конвертираме ObjectId към стринг, ако е нужно
+        user['_id'] = str(user['_id'])
     return jsonify(users), 200
 
-
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import Task
 
 @auth_bp.route('/tasks', methods=['POST'])
 @jwt_required()
@@ -72,12 +74,14 @@ def create_task():
     task['_id'] = str(task['_id'])
     return jsonify(task), 201
 
+
 @auth_bp.route('/tasks', methods=['GET'])
 @jwt_required()
 def get_tasks():
     user_id = get_jwt_identity()
     tasks = Task.get_tasks_by_user(user_id)
     return jsonify(tasks), 200
+
 
 @auth_bp.route('/tasks/<task_id>', methods=['PUT'])
 @jwt_required()
@@ -89,6 +93,7 @@ def update_task(task_id):
         return jsonify({"msg": "Task updated"}), 200
     return jsonify({"msg": "Task not found"}), 404
 
+
 @auth_bp.route('/tasks/<task_id>', methods=['DELETE'])
 @jwt_required()
 def delete_task(task_id):
@@ -97,3 +102,8 @@ def delete_task(task_id):
     if success:
         return jsonify({"msg": "Task deleted"}), 200
     return jsonify({"msg": "Task not found"}), 404
+
+
+@auth_bp.route("/test", methods=["GET"])
+def test():
+    return jsonify({"message": "Auth blueprint is working"}), 200

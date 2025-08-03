@@ -1,8 +1,8 @@
 import uuid
 from extensions import get_db
-from datetime import datetime
+from datetime import datetime, timezone
 
-class User:
+class User():
     @staticmethod
     def create_user(username, email, password):
         user = {
@@ -10,7 +10,7 @@ class User:
             "username": username,
             "email": email,
             "password": password,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         }
         get_db()['users'].insert_one(user)
         return user
@@ -21,6 +21,7 @@ class User:
 
     @staticmethod
     def find_by_email(email):
+        from extensions import get_db
         return get_db()['users'].find_one({"email": email})
 
     @staticmethod
@@ -37,7 +38,7 @@ class Task:
             "due_date": due_date,
             "status": "pending",  # или 'completed'
             "owner_id": owner_id,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         }
         get_db()['tasks'].insert_one(task)
         return task
