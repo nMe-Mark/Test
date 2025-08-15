@@ -38,9 +38,11 @@ class Task:
             "due_date": due_date,
             "status": "pending",  # или 'completed'
             "owner_id": owner_id,
+            "completed": False,  # <--- добави това!
             "created_at": datetime.now(timezone.utc)
         }
-        get_db()['tasks'].insert_one(task)
+        result = get_db()['tasks'].insert_one(task)
+        task['_id'] = result.inserted_id
         return task
 
     @staticmethod

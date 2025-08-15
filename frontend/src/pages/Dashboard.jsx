@@ -3,6 +3,32 @@ import React, { useEffect, useState } from 'react';
 import api from '../api';
 import { useNavigate } from 'react-router-dom';
 
+function Navbar() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
+  return (
+    <nav>
+      <button onClick={handleLogout}>Logout</button>
+    </nav>
+  );
+}
+
+const buttonStyle = {
+  marginRight: '8px',
+  marginTop: '8px',
+  padding: '6px 10px',
+  backgroundColor: 'white',
+  color: 'black',
+  border: '1px solid black',
+  borderRadius: '4px',
+  cursor: 'pointer'
+};
+
 function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState('');
@@ -29,6 +55,7 @@ function Dashboard() {
         title,
         description,
         due_date: dueDate,
+        completed: null
       });
       setTitle('');
       setDescription('');
@@ -48,12 +75,22 @@ function Dashboard() {
     }
   };
 
+  const handleUpdateStatus = async (taskId, status) => {
+    try {
+      await api.put(`/auth/tasks/${taskId}`, { completed: status });
+      fetchTasks();
+    } catch (err) {
+      console.error('Грешка при обновяване на задачата:', err);
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
   }, []);
 
   return (
     <div>
+      <Navbar />
       <h2>Твоите задачи</h2>
       <form onSubmit={handleCreate}>
         <input
@@ -78,14 +115,56 @@ function Dashboard() {
         <button type="submit">Създай</button>
       </form>
 
-      <ul>
-        {tasks.map(task => (
-          <li key={task._id}>
-            <strong>{task.title}</strong> – {task.status}
-            <button onClick={() => handleDelete(task._id)}>Изтрий</button>
-          </li>
+      <div>
+        {tasks.map((task) => (
+          <div
+            key={task._id}
+            style={{
+              border: '1px solid gray',
+              padding: '10px',
+              marginBottom: '10px',
+              backgroundColor:
+                task.completed === true
+                  ? '#2e7d32'
+                  : task.completed === false
+                  ? '#c62828'
+                  : '#b0bec5',
+              color: 'white',
+              borderRadius: '6px'
+            }}
+          >
+            <h3>{task.title}</h3>
+            <p>{task.description}</p>
+            <p>До: {new Date(task.due_date).toLocaleString()}</p>
+            <p>
+              Статус:{' '}
+              {task.completed === true
+                ? 'Завършена'
+                : task.completed === false
+                ? 'Незавършена'
+                : 'Няма статус'}
+            </p>
+            <button
+              style={buttonStyle}
+              onClick={() => handleUpdateStatus(task._id, true)}
+            >
+              ✅ Завършено
+            </button>
+            <button
+              style={buttonStyle}
+              onClick={() => handleUpdateStatus(task._id, false)}
+            >
+              ❌ Незавършено
+            </button>
+            <button
+              style={buttonStyle}
+              onClick={() => handleDelete(task._id)}
+            >
+              🗑️ Изтрий
+            </button>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
