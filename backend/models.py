@@ -36,9 +36,9 @@ class Task:
             "title": title,
             "description": description,
             "due_date": due_date,
-            "status": "pending",  # или 'completed'
+            "status": "pending", 
             "owner_id": owner_id,
-            "completed": False,  # <--- добави това!
+            "completed": False,  
             "created_at": datetime.now(timezone.utc)
         }
         result = get_db()['tasks'].insert_one(task)
