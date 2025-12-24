@@ -1,22 +1,26 @@
-// src/pages/Dashboard.jsx
 import React, { useEffect, useState } from 'react';
-import api from '../api';
+import api, { createTeam, getAllTeams, requestJoinTeam } from '../api';
 import { useNavigate } from 'react-router-dom';
+
+/* ================= NAVBAR ================= */
 
 function Navbar() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('role');
     navigate('/login');
   };
 
   return (
-    <nav>
+    <nav style={{ marginBottom: '1rem' }}>
       <button onClick={handleLogout}>Logout</button>
     </nav>
   );
 }
+
+/* ================= STYLES ================= */
 
 const buttonStyle = {
   marginRight: '8px',
@@ -29,82 +33,130 @@ const buttonStyle = {
   cursor: 'pointer'
 };
 
+/* ================= DASHBOARD ================= */
+
 function Dashboard() {
+  const navigate = useNavigate();
+
+  /* -------- TASKS -------- */
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const navigate = useNavigate();
+
+  /* -------- TEAMS -------- */
+  const [teamName, setTeamName] = useState('');
+  const [allTeams, setAllTeams] = useState([]);
+  const [joinTeamId, setJoinTeamId] = useState('');
+
+  /* ================= API CALLS ================= */
 
   const fetchTasks = async () => {
     try {
-      const res = await api.get('/auth/tasks');
+      const res = await api.get('/tasks');
       setTasks(res.data);
     } catch (err) {
-      console.error(err);
       if (err.response?.status === 401) {
         navigate('/login'); // токенът е невалиден
       }
     }
   };
 
-  const handleCreate = async (e) => {
+  const fetchTeams = async () => {
+    try {
+      const res = await getAllTeams();
+      setAllTeams(res.data);
+    } catch (err) {
+      console.error('Error fetching teams', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+    fetchTeams();
+  }, []);
+
+  /* ================= TASK ACTIONS ================= */
+
+  const handleCreateTask = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/auth/tasks', {
+      await api.post('/tasks', {
         title,
         description,
         due_date: dueDate,
         completed: null
       });
+
       setTitle('');
       setDescription('');
       setDueDate('');
-      fetchTasks(); // презареди списъка
+      fetchTasks();
     } catch (err) {
-      console.error('Грешка при създаване на задача');
+      alert('Грешка при създаване на задача');
     }
   };
 
-  const handleDelete = async (id) => {
+    const handleDelete = async (id) => {
     try {
-      await api.delete(`/auth/tasks/${id}`);
+      await api.delete(`/tasks/${id}`);
       fetchTasks();
     } catch (err) {
       console.error('Грешка при изтриване');
     }
   };
 
-  const handleUpdateStatus = async (taskId, status) => {
+  const updateTaskStatus = async (taskId, completed) => {
+    await api.put(`/tasks/${taskId}`, { completed });
+    fetchTasks();
+  };
+
+  /* ================= TEAM ACTIONS ================= */
+
+  const handleCreateTeam = async (e) => {
+    e.preventDefault();
     try {
-      await api.put(`/auth/tasks/${taskId}`, { completed: status });
-      fetchTasks();
+      await createTeam(teamName);
+      alert('Екипът е създаден успешно');
+      setTeamName('');
+      fetchTeams();
     } catch (err) {
-      console.error('Грешка при обновяване на задачата:', err);
+      console.error(err);
+      alert('Грешка при създаване на екипа');
     }
   };
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
+  const handleJoinTeam = async () => {
+    try {
+      await requestJoinTeam(joinTeamId);
+      alert('Заявката за присъединяване е изпратена');
+      setJoinTeamId('');
+    } catch (err) {
+      alert(err.response?.data?.msg || 'Грешка при join');
+    }
+  };
+
+  /* ================= RENDER ================= */
 
   return (
     <div>
       <Navbar />
+
+      {/* ---------- TASKS ---------- */}
       <h2>Твоите задачи</h2>
-      <form onSubmit={handleCreate}>
+
+      <form onSubmit={handleCreateTask}>
         <input
           type="text"
-          placeholder="Заглавие"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          placeholder="Заглавие"
           required
         />
         <input
-          type="text"
-          placeholder="Описание"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          placeholder="Описание"
         />
         <input
           type="datetime-local"
@@ -116,7 +168,7 @@ function Dashboard() {
       </form>
 
       <div>
-        {tasks.map((task) => (
+        {tasks.map(task => (
           <div
             key={task._id}
             style={{
@@ -144,15 +196,17 @@ function Dashboard() {
                 ? 'Незавършена'
                 : 'Няма статус'}
             </p>
+
             <button
               style={buttonStyle}
-              onClick={() => handleUpdateStatus(task._id, true)}
+              onClick={() => updateTaskStatus(task._id, true)}
             >
               ✅ Завършено
             </button>
+
             <button
               style={buttonStyle}
-              onClick={() => handleUpdateStatus(task._id, false)}
+              onClick={() => updateTaskStatus(task._id, false)}
             >
               ❌ Незавършено
             </button>
@@ -165,8 +219,163 @@ function Dashboard() {
           </div>
         ))}
       </div>
+
+      <hr />
+
+      {/* ---------- TEAMS ---------- */}
+      <h3>Всички екипи</h3>
+      {allTeams.map(t => (
+        <p key={t._id}>
+          {t.name} – <small>{t._id}</small>
+        </p>
+      ))}
+
+      <h3>Създай екип</h3>
+      <form onSubmit={handleCreateTeam}>
+        <input
+          value={teamName}
+          onChange={(e) => setTeamName(e.target.value)}
+          placeholder="Име на екипа"
+          required
+        />
+        <button type="submit">Създай</button>
+      </form>
+
+      <h3>Присъедини се към екип</h3>
+      <input
+        value={joinTeamId}
+        onChange={(e) => setJoinTeamId(e.target.value)}
+        placeholder="Team ID"
+      />
+      <button onClick={handleJoinTeam}>
+        Join
+      </button>
     </div>
   );
 }
 
 export default Dashboard;
+
+
+// import React, { useEffect, useState } from 'react';
+// import api, { createTeam, getAllTeams, requestJoinTeam } from '../api';
+// import { useNavigate } from 'react-router-dom';
+
+// function Navbar() {
+//   const navigate = useNavigate();
+//   const handleLogout = () => {
+//     localStorage.removeItem('token');
+//     localStorage.removeItem('role');
+//     navigate('/login');
+//   };
+//   return (
+//     <nav style={{ marginBottom: '1rem' }}>
+//       <button onClick={handleLogout}>Logout</button>
+//     </nav>
+//   );
+// }
+
+// const buttonStyle = {
+//   marginRight: '8px',
+//   marginTop: '8px',
+//   padding: '6px 10px',
+//   backgroundColor: 'white',
+//   color: 'black',
+//   border: '1px solid black',
+//   borderRadius: '4px',
+//   cursor: 'pointer'
+// };
+
+// function Dashboard() {
+//   const navigate = useNavigate();
+//   const [tasks, setTasks] = useState([]);
+//   const [title, setTitle] = useState('');
+//   const [description, setDescription] = useState('');
+//   const [dueDate, setDueDate] = useState('');
+//   const [teamName, setTeamName] = useState('');
+//   const [allTeams, setAllTeams] = useState([]);
+//   const [joinTeamId, setJoinTeamId] = useState('');
+
+//   const fetchTasks = async () => {
+//     try {
+//       const res = await api.get('/tasks');
+//       setTasks(res.data);
+//     } catch (err) {
+//       if (err.response?.status === 401) navigate('/login');
+//     }
+//   };
+
+//   const fetchTeams = async () => {
+//     try {
+//       const res = await getAllTeams();
+//       setAllTeams(res.data);
+//     } catch (err) {
+//       console.error('Error fetching teams', err);
+//     }
+//   };
+
+//   useEffect(() => { fetchTasks(); fetchTeams(); }, []);
+
+//   const handleCreateTask = async (e) => {
+//     e.preventDefault();
+//     try {
+//       await api.post('/tasks', { title, description, due_date: dueDate });
+//       setTitle(''); setDescription(''); setDueDate('');
+//       fetchTasks();
+//     } catch { alert('Грешка при създаване на задача'); }
+//   };
+
+//   const updateTaskStatus = async (taskId, completed) => {
+//     try { await api.put(`/tasks/${taskId}`, { completed }); fetchTasks(); }
+//     catch { alert('Грешка при актуализация на задачата'); }
+//   };
+
+//   const handleCreateTeam = async (e) => {
+//     e.preventDefault();
+//     try { await createTeam(teamName); alert('Екипът е създаден успешно'); setTeamName(''); fetchTeams(); }
+//     catch (err) { console.error(err); alert('Грешка при създаване на екипа'); }
+//   };
+
+//   const handleJoinTeam = async () => {
+//     try { await requestJoinTeam(joinTeamId); alert('Заявката за присъединяване е изпратена'); setJoinTeamId(''); }
+//     catch (err) { alert(err.response?.data?.msg || 'Грешка при join'); }
+//   };
+
+//   return (
+//     <div>
+//       <Navbar />
+//       <h2>Твоите задачи</h2>
+//       <form onSubmit={handleCreateTask}>
+//         <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Заглавие" required />
+//         <input value={description} onChange={e=>setDescription(e.target.value)} placeholder="Описание" />
+//         <input type="datetime-local" value={dueDate} onChange={e=>setDueDate(e.target.value)} required />
+//         <button type="submit">Създай</button>
+//       </form>
+//       {tasks.map(task => (
+//         <div key={task._id} style={{border:'1px solid gray',padding:'10px',marginBottom:'10px'}}>
+//           <h3>{task.title}</h3>
+//           <p>{task.description}</p>
+//           <p>{task.due_date ? new Date(task.due_date).toLocaleString() : '-'}</p>
+//           <button style={buttonStyle} onClick={()=>updateTaskStatus(task._id,true)}>✅</button>
+//           <button style={buttonStyle} onClick={()=>updateTaskStatus(task._id,false)}>❌</button>
+//         </div>
+//       ))}
+
+//       <hr />
+//       <h3>Всички екипи</h3>
+//       {allTeams.map(t => <p key={t._id}>{t.name} – <small>{t._id}</small></p>)}
+
+//       <h3>Създай екип</h3>
+//       <form onSubmit={handleCreateTeam}>
+//         <input value={teamName} onChange={e=>setTeamName(e.target.value)} placeholder="Име на екипа" required />
+//         <button type="submit">Създай</button>
+//       </form>
+
+//       <h3>Присъедини се към екип</h3>
+//       <input value={joinTeamId} onChange={e=>setJoinTeamId(e.target.value)} placeholder="Team ID" />
+//       <button onClick={handleJoinTeam}>Join</button>
+//     </div>
+//   );
+// }
+
+// export default Dashboard;

@@ -21,8 +21,9 @@ const handleSubmit = async e => {
   e.preventDefault();
   console.log(formData);  // добави това за дебъг
   try {
-    const response = await api.post('/auth/login', formData);
+    const response = await api.post('/login', formData);
     localStorage.setItem('token', response.data.token);
+    localStorage.setItem('role', response.data.role);  // ново
     navigate('/dashboard');
   } catch (err) {
     console.error(err);

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import api from '../api';
 import { useNavigate } from 'react-router-dom';
@@ -7,7 +6,8 @@ function Register() {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
-    password: ''
+    password: '',
+    role: 'personal' 
   });
 
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ function Register() {
   const handleSubmit = async e => {
     e.preventDefault();
     try {
-      const response = await api.post('/auth/register', formData);
+      const response = await api.post('/register', formData);
       console.log('Регистрация успешна:', response.data);
       navigate('/login');
     } catch (err) {
@@ -34,9 +34,49 @@ function Register() {
       <h2>Register</h2>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleSubmit}>
-        <input type="text" name="username" placeholder="Username" onChange={handleChange} required /><br />
-        <input type="email" name="email" placeholder="Email" onChange={handleChange} required /><br />
-        <input type="password" name="password" placeholder="Password" onChange={handleChange} required /><br />
+        <input
+          type="text"
+          name="username"
+          placeholder="Username"
+          onChange={handleChange}
+          required
+        /><br />
+        <input
+          type="email"
+          name="email"
+          placeholder="Email"
+          onChange={handleChange}
+          required
+        /><br />
+        <input
+          type="password"
+          name="password"
+          placeholder="Password"
+          onChange={handleChange}
+          required
+        /><br />
+
+        <label>
+          <input
+            type="radio"
+            name="role"
+            value="personal"
+            checked={formData.role === 'personal'}
+            onChange={handleChange}
+          />
+          Личен акаунт
+        </label>
+        <label style={{ marginLeft: '1rem' }}>
+          <input
+            type="radio"
+            name="role"
+            value="team"
+            checked={formData.role === 'team'}
+            onChange={handleChange}
+          />
+          Екипен акаунт
+        </label><br />
+
         <button type="submit">Register</button>
       </form>
     </div>

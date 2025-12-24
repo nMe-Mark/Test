@@ -6,4 +6,3 @@ jwt = JWTManager()
 
 def get_db():
     return current_app.db
-
