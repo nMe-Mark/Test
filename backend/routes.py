@@ -5,7 +5,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import Task
 
-auth_bp = Blueprint('auth', __name__)  # Премахнат url_prefix тук
+auth_bp = Blueprint('auth', __name__)  
+
+# ------------------ USER ------------------ #
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -57,6 +59,7 @@ def get_all_users():
         user['_id'] = str(user['_id'])
     return jsonify(users), 200
 
+# ------------------ TASKS ------------------ #
 
 @auth_bp.route('/tasks', methods=['POST'])
 @jwt_required()
@@ -103,6 +106,7 @@ def delete_task(task_id):
         return jsonify({"msg": "Task deleted"}), 200
     return jsonify({"msg": "Task not found"}), 404
 
+# ------------------ TEST ------------------ #
 
 @auth_bp.route("/test", methods=["GET"])
 def test():
