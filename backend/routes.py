@@ -349,7 +349,7 @@ from functools import wraps
 from bson import ObjectId
 from extensions import get_db
 
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__)  
 
 # ------------------ USER ------------------ #
 
@@ -398,7 +398,14 @@ def login():
     return jsonify({"msg": "Invalid credentials"}), 401
 
 
-# ------------------ TASKS ------------------ #
+@auth_bp.route('/all_users', methods=['GET'])
+def get_all_users():
+    from extensions import get_db
+    users = list(get_db()['users'].find({}, {'password': 0}))
+    for user in users:
+        user['_id'] = str(user['_id'])
+    return jsonify(users), 200
+
 
 @auth_bp.route('/tasks', methods=['POST'])
 @jwt_required()
@@ -443,80 +450,7 @@ def delete_task(task_id):
         return jsonify({"msg": "Task deleted"}), 200
     return jsonify({"msg": "Task not found"}), 404
 
-# ------------------ TEAMS ------------------ #
 
-def admin_required(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        team_id = kwargs.get("team_id") or (request.get_json() or {}).get("team_id")
-        if not team_id:
-            return jsonify({"msg": "Missing team_id"}), 400
-        if not Team.is_admin(get_jwt_identity(), team_id):
-            return jsonify({"msg": "Admin only"}), 403
-        return f(*args, **kwargs)
-    return wrapper
-
-@auth_bp.route('/team/create', methods=['POST', 'OPTIONS'])
-@jwt_required(optional=True)
-def create_team():
-    if request.method == 'OPTIONS':
-        return '', 200
-
-    data = request.get_json()
-    name = data.get("name")   # ⬅️ ВРЪЩАМЕ СЕ КЪМ name
-
-    if not name:
-        return jsonify({"msg": "Missing name"}), 400
-
-    team = Team.create_team(name, get_jwt_identity())
-    team["_id"] = str(team["_id"])
-    return jsonify(team), 201
-
-@auth_bp.route('/team/all', methods=['GET'])
-@jwt_required()
-def get_all_teams():
-    teams = list(get_db().teams.find({}, {"members": 0}))
-    for t in teams:
-        t["_id"] = str(t["_id"])
-    return jsonify(teams), 200
-
-@auth_bp.route('/team/request_join', methods=['POST'])
-@jwt_required()
-def request_join():
-    user_id = get_jwt_identity()  # string
-    data = request.get_json() or {}
-    team_id = data.get("team_id")  # string (UUID)
-
-    if not team_id:
-        return jsonify({"msg": "Missing team_id"}), 400
-
-    db = get_db()
-
-    # ⛔ БЕЗ ObjectId
-    team = db.teams.find_one({"_id": team_id})
-    if not team:
-        return jsonify({"msg": "Team not found"}), 404
-
-    # Проверка дали вече е член
-    for m in team.get("members", []):
-        if str(m["user_id"]) == str(user_id):
-            return jsonify({"msg": "Already member"}), 400
-
-    # Проверка за вече подадена заявка
-    exists = db.team_join_requests.find_one({
-        "team_id": team_id,
-        "user_id": user_id,
-        "status": "pending"
-    })
-    if exists:
-        return jsonify({"msg": "Already requested"}), 400
-
-    db.team_join_requests.insert_one({
-        "team_id": team_id,
-        "user_id": user_id,
-        "status": "pending",
-        "created_at": datetime.utcnow()
-    })
-
-    return jsonify({"msg": "Request submitted"}), 200
-
+@auth_bp.route("/test", methods=["GET"])
+def test():
+    return jsonify({"message": "Auth blueprint is working"}), 200
